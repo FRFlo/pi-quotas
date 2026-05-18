@@ -14,6 +14,7 @@
     "extensions": [
       "./src/extensions/core/index.ts",
       "./src/extensions/command-quotas/index.ts",
+      "./src/extensions/command-tokens/index.ts",
       "./src/extensions/usage-status/index.ts",
       "./src/extensions/quota-warnings/index.ts"
     ],
