@@ -8,6 +8,7 @@ export const SUPPORTED_PROVIDERS: SupportedQuotaProvider[] = [
   "github-copilot",
   "openrouter",
   "synthetic",
+  "zai",
 ];
 
 export const PROVIDER_LABELS: Record<SupportedQuotaProvider, string> = {
@@ -16,6 +17,7 @@ export const PROVIDER_LABELS: Record<SupportedQuotaProvider, string> = {
   "github-copilot": "GitHub Copilot",
   openrouter: "OpenRouter",
   synthetic: "Synthetic",
+  zai: "Z.ai",
 };
 
 const PROVIDER_TTLS_MS: Record<SupportedQuotaProvider, number> = {
@@ -24,6 +26,7 @@ const PROVIDER_TTLS_MS: Record<SupportedQuotaProvider, number> = {
   "github-copilot": 5 * 60_000,
   openrouter: 60_000,
   synthetic: 60_000,
+  zai: 60_000,
 };
 
 type CacheEntry = {

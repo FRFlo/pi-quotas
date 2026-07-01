@@ -10,6 +10,7 @@ import {
   parseGitHubCopilotUsage,
   parseOpenRouterUsage,
   parseSyntheticUsage,
+  parseZaiUsage,
 } from "./providers.js";
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -325,10 +326,37 @@ export async function fetchSyntheticQuotas(
   return success("synthetic", parseSyntheticUsage(result.data));
 }
 
+export async function fetchZaiQuotasWithToken(
+  apiKey: string | undefined,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  if (!apiKey) return failure("No Z.ai API key found", "config");
+  const result = await fetchJson(
+    "https://api.z.ai/api/monitor/usage/quota/limit",
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    },
+    signal,
+  );
+  if (!result.ok) return failure(result.message, result.kind);
+  return success("zai", parseZaiUsage(result.data));
+}
+
+export async function fetchZaiQuotas(
+  authStorage: AuthStorage,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  return fetchZaiQuotasWithToken(await providerAccessToken(authStorage, "zai"), signal);
+}
+
 export const PROVIDER_FETCHERS = {
   anthropic: fetchAnthropicQuotas,
   "openai-codex": fetchCodexQuotas,
   "github-copilot": fetchGitHubCopilotQuotas,
   openrouter: fetchOpenRouterQuotas,
   synthetic: fetchSyntheticQuotas,
+  zai: fetchZaiQuotas,
 } as const;

@@ -434,3 +434,92 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
 
   return windows;
 }
+
+// Z.ai (Zhipu AI) GLM Coding Plan quotas.
+//
+// The quota endpoint returns { data: { limits: [...], level } }. Each entry in
+// `limits` is either a TOKENS_LIMIT (token utilisation, reported as a bare
+// `percentage` with no absolute used/limit counts) or a TIME_LIMIT (a monthly
+// count window such as web searches, which does carry real used/limit counts).
+//
+// The window length is encoded as (unit, number). Observed values:
+//   unit 3 = HOUR  (e.g. the rolling 5-hour session window)
+//   unit 6 = WEEK  (e.g. the rolling 7-day weekly window)
+//   unit 5 = MONTH (TIME_LIMIT only, the monthly count window)
+// Reset times are epoch milliseconds.
+export function parseZaiUsage(data: any): QuotaWindow[] {
+  const collected: QuotaWindow[] = [];
+
+  const limits: any[] = data?.data?.limits ?? data?.limits ?? [];
+  if (!Array.isArray(limits)) return collected;
+
+  for (const entry of limits) {
+    if (!entry || typeof entry !== "object") continue;
+
+    // Token windows only expose a percentage, so — like Anthropic/Codex — we
+    // report usedValue as the percentage against a nominal limit of 100.
+    if (entry.type === "TOKENS_LIMIT") {
+      const unit = entry.unit;
+      const count = Number(entry.number ?? 1) || 1;
+      let label: string;
+      let windowSeconds: number;
+
+      switch (unit) {
+        case 3: // HOUR
+          label = `${count}h`;
+          windowSeconds = count * 60 * 60;
+          break;
+        case 4: // DAY (defensive — not observed, but handled)
+          label = `${count}d`;
+          windowSeconds = count * 24 * 60 * 60;
+          break;
+        case 6: // WEEK
+          label = `${count * 7}d`;
+          windowSeconds = count * 7 * 24 * 60 * 60;
+          break;
+        default:
+          // Unknown unit — still surface it so usage is never silently hidden.
+          label = "Tokens";
+          windowSeconds = 0;
+          break;
+      }
+
+      collected.push({
+        provider: "zai",
+        label,
+        usedPercent: Number(entry.percentage ?? 0),
+        resetsAt: parseDateish(entry.nextResetTime),
+        windowSeconds,
+        usedValue: Number(entry.percentage ?? 0),
+        limitValue: 100,
+        showPace: false,
+        nextLabel: "Resets",
+      });
+      continue;
+    }
+
+    // Monthly web-search / tool-call count window. Here z.ai gives real
+    // counts: `usage` is the entitlement, `currentValue` is what's been used.
+    if (entry.type === "TIME_LIMIT") {
+      const limit = Number(entry.usage ?? 0);
+      const used = Number(entry.currentValue ?? 0);
+      if (limit <= 0) continue;
+
+      collected.push({
+        provider: "zai",
+        label: "Web / month",
+        usedPercent: safePercent(used, limit),
+        resetsAt: parseDateish(entry.nextResetTime),
+        windowSeconds: 30 * 24 * 60 * 60,
+        usedValue: used,
+        limitValue: limit,
+        showPace: false,
+        nextLabel: "Resets",
+      });
+    }
+  }
+
+  // Shortest window first (5h → 7d → month), matching Anthropic/Codex order.
+  collected.sort((a, b) => a.windowSeconds - b.windowSeconds);
+  return collected;
+}
