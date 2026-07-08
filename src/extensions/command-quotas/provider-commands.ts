@@ -46,5 +46,11 @@ export function getProviderCommandInfo(
         commandName: "zai:quotas",
         title: "Z.ai Quotas",
       };
+    case "opencode-go":
+      return {
+        provider,
+        commandName: "opencode-go:quotas",
+        title: "OpenCode Go Quotas",
+      };
   }
 }

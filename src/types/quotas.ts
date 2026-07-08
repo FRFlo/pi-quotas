@@ -4,7 +4,8 @@ export type SupportedQuotaProvider =
   | "github-copilot"
   | "openrouter"
   | "synthetic"
-  | "zai";
+  | "zai"
+  | "opencode-go";
 
 export type QuotasErrorKind =
   | "cancelled"
@@ -14,7 +15,10 @@ export type QuotasErrorKind =
   | "network";
 
 export type QuotasResult =
-  | { success: true; data: { windows: QuotaWindow[]; provider: SupportedQuotaProvider } }
+  | {
+      success: true;
+      data: { windows: QuotaWindow[]; provider: SupportedQuotaProvider };
+    }
   | { success: false; error: { message: string; kind: QuotasErrorKind } };
 
 export interface QuotaWindow {

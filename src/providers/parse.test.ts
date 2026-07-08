@@ -5,6 +5,7 @@ import { parseGitHubCopilotUsage } from "./providers.js";
 import { parseOpenRouterUsage } from "./providers.js";
 import { parseSyntheticUsage } from "./providers.js";
 import { parseZaiUsage } from "./providers.js";
+import { parseOpenCodeGoUsage } from "./providers.js";
 
 describe("parseAnthropicUsage", () => {
   it("maps oauth usage response into quota windows", () => {
@@ -64,7 +65,10 @@ describe("parseAnthropicUsage", () => {
       five_hour: { utilization: 9, resets_at: "2026-04-22T09:00:00Z" },
       seven_day: { utilization: 31, resets_at: "2026-04-23T23:00:00Z" },
       seven_day_sonnet: { utilization: 8, resets_at: "2026-04-23T23:00:00Z" },
-      seven_day_omelette: { utilization: 23, resets_at: "2026-04-26T23:00:00Z" },
+      seven_day_omelette: {
+        utilization: 23,
+        resets_at: "2026-04-26T23:00:00Z",
+      },
       seven_day_opus: null,
     });
 
@@ -141,7 +145,11 @@ describe("parseCodexUsage", () => {
     const windows = parseCodexUsage({
       plan_type: "team",
       rate_limit: {
-        primary_window: { used_percent: 10, reset_at: 1776880800, limit_window_seconds: 18000 },
+        primary_window: {
+          used_percent: 10,
+          reset_at: 1776880800,
+          limit_window_seconds: 18000,
+        },
       },
       credits: {
         has_credits: true,
@@ -161,7 +169,11 @@ describe("parseCodexUsage", () => {
     const windows = parseCodexUsage({
       plan_type: "team",
       rate_limit: {
-        primary_window: { used_percent: 10, reset_at: 1776880800, limit_window_seconds: 18000 },
+        primary_window: {
+          used_percent: 10,
+          reset_at: 1776880800,
+          limit_window_seconds: 18000,
+        },
       },
       spend_control: { reached: true },
     });
@@ -174,7 +186,11 @@ describe("parseCodexUsage", () => {
   it("skips credits when no balance", () => {
     const windows = parseCodexUsage({
       rate_limit: {
-        primary_window: { used_percent: 10, reset_at: 1776880800, limit_window_seconds: 18000 },
+        primary_window: {
+          used_percent: 10,
+          reset_at: 1776880800,
+          limit_window_seconds: 18000,
+        },
       },
       credits: { has_credits: false, balance: null },
     });
@@ -255,8 +271,14 @@ describe("parseGitHubCopilotUsage", () => {
     });
 
     expect(windows).toHaveLength(2);
-    expect(windows[0]).toMatchObject({ label: "Chat / month", usedPercent: 18 });
-    expect(windows[1]).toMatchObject({ label: "Completions / month", usedPercent: 0 });
+    expect(windows[0]).toMatchObject({
+      label: "Chat / month",
+      usedPercent: 18,
+    });
+    expect(windows[1]).toMatchObject({
+      label: "Completions / month",
+      usedPercent: 0,
+    });
   });
 });
 
@@ -478,7 +500,9 @@ describe("parseSyntheticUsage", () => {
     expect(search!.limitValue).toBe(250);
 
     // freeToolCalls with limit=0 is NOT shown
-    expect(windows.find((w) => w.label === "Free Tool Calls / day")).toBeUndefined();
+    expect(
+      windows.find((w) => w.label === "Free Tool Calls / day"),
+    ).toBeUndefined();
   });
 
   it("shows freeToolCalls when limit > 0", () => {
@@ -539,6 +563,75 @@ describe("parseSyntheticUsage", () => {
 
   it("returns empty array when no data", () => {
     const windows = parseSyntheticUsage({});
+    expect(windows).toHaveLength(0);
+  });
+});
+
+describe("parseOpenCodeGoUsage", () => {
+  it("parses rolling, weekly, and monthly windows", () => {
+    const windows = parseOpenCodeGoUsage({
+      rolling: {
+        usagePercent: 35,
+        resetInSec: 12000,
+        percentRemaining: 65,
+        resetTimeIso: "2026-05-18T22:00:00Z",
+      },
+      weekly: {
+        usagePercent: 62,
+        resetInSec: 500000,
+        percentRemaining: 38,
+        resetTimeIso: "2026-05-25T00:00:00Z",
+      },
+      monthly: {
+        usagePercent: 28,
+        resetInSec: 1200000,
+        percentRemaining: 72,
+        resetTimeIso: "2026-06-01T00:00:00Z",
+      },
+    });
+
+    expect(windows).toHaveLength(3);
+
+    expect(windows[0]).toMatchObject({
+      provider: "opencode-go",
+      label: "5h Rolling",
+      usedPercent: 35,
+      windowSeconds: 5 * 60 * 60,
+    });
+
+    expect(windows[1]).toMatchObject({
+      provider: "opencode-go",
+      label: "Weekly",
+      usedPercent: 62,
+      windowSeconds: 7 * 24 * 60 * 60,
+      showPace: true,
+    });
+
+    expect(windows[2]).toMatchObject({
+      provider: "opencode-go",
+      label: "Monthly",
+      usedPercent: 28,
+      windowSeconds: 30 * 24 * 60 * 60,
+      showPace: true,
+    });
+  });
+
+  it("handles partial windows", () => {
+    const windows = parseOpenCodeGoUsage({
+      rolling: {
+        usagePercent: 10,
+        resetInSec: 15000,
+        percentRemaining: 90,
+        resetTimeIso: "2026-05-18T21:00:00Z",
+      },
+    });
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0].label).toBe("5h Rolling");
+  });
+
+  it("returns empty for no data", () => {
+    const windows = parseOpenCodeGoUsage({});
     expect(windows).toHaveLength(0);
   });
 });

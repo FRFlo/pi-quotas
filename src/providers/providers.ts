@@ -13,7 +13,10 @@ function parseDateish(value: unknown): Date {
 function monthWindowSeconds(resetAt: Date): number {
   const approxStart = new Date(resetAt);
   approxStart.setMonth(approxStart.getMonth() - 1);
-  return Math.max(1, Math.round((resetAt.getTime() - approxStart.getTime()) / 1000));
+  return Math.max(
+    1,
+    Math.round((resetAt.getTime() - approxStart.getTime()) / 1000),
+  );
 }
 
 export function parseAnthropicUsage(data: any): QuotaWindow[] {
@@ -79,8 +82,14 @@ export function parseAnthropicUsage(data: any): QuotaWindow[] {
     windows.push({
       provider: "anthropic",
       label: `Extra (${currency})`,
-      usedPercent: Number(extra.utilization ?? safePercent(usedDollars, limitDollars)),
-      resetsAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+      usedPercent: Number(
+        extra.utilization ?? safePercent(usedDollars, limitDollars),
+      ),
+      resetsAt: new Date(
+        new Date().getFullYear(),
+        new Date().getMonth() + 1,
+        1,
+      ),
       windowSeconds: 30 * 24 * 60 * 60,
       usedValue: usedDollars,
       limitValue: limitDollars,
@@ -95,16 +104,26 @@ export function parseAnthropicUsage(data: any): QuotaWindow[] {
 }
 
 function percentLeftToUsedPercent(limit: any): number {
-  if (limit?.percent_left != null) return Math.max(0, 100 - Number(limit.percent_left));
-  if (limit?.remaining_percent != null) return Math.max(0, 100 - Number(limit.remaining_percent));
+  if (limit?.percent_left != null)
+    return Math.max(0, 100 - Number(limit.percent_left));
+  if (limit?.remaining_percent != null)
+    return Math.max(0, 100 - Number(limit.remaining_percent));
   if (limit?.used_percent != null) return Number(limit.used_percent);
   return 0;
 }
 
 export function parseCodexUsage(data: any): QuotaWindow[] {
   const rateLimit = data?.rate_limit ?? data?.rate_limits ?? {};
-  const primary = rateLimit.primary_window ?? rateLimit.primary ?? rateLimit.five_hour_limit ?? rateLimit.five_hour;
-  const secondary = rateLimit.secondary_window ?? rateLimit.secondary ?? rateLimit.weekly_limit ?? rateLimit.weekly;
+  const primary =
+    rateLimit.primary_window ??
+    rateLimit.primary ??
+    rateLimit.five_hour_limit ??
+    rateLimit.five_hour;
+  const secondary =
+    rateLimit.secondary_window ??
+    rateLimit.secondary ??
+    rateLimit.weekly_limit ??
+    rateLimit.weekly;
 
   const windows: QuotaWindow[] = [];
 
@@ -180,7 +199,11 @@ export function parseCodexUsage(data: any): QuotaWindow[] {
 export function parseGitHubCopilotUsage(data: any): QuotaWindow[] {
   const windows: QuotaWindow[] = [];
 
-  const resetAt = parseDateish(data?.quota_reset_date ?? data?.quota_reset_date_utc ?? data?.limited_user_reset_date);
+  const resetAt = parseDateish(
+    data?.quota_reset_date ??
+      data?.quota_reset_date_utc ??
+      data?.limited_user_reset_date,
+  );
   const periodSeconds = monthWindowSeconds(resetAt);
 
   const snapshots = data?.quota_snapshots;
@@ -209,11 +232,12 @@ export function parseGitHubCopilotUsage(data: any): QuotaWindow[] {
         limitValue: entitlement,
         showPace: true,
         nextLabel: "Resets",
-        nextAmount: overageCount > 0
-          ? `+${overageCount} overage`
-          : overagePermitted
-            ? "overage allowed"
-            : undefined,
+        nextAmount:
+          overageCount > 0
+            ? `+${overageCount} overage`
+            : overagePermitted
+              ? "overage allowed"
+              : undefined,
       });
     }
     return windows;
@@ -247,21 +271,41 @@ export function parseGitHubCopilotUsage(data: any): QuotaWindow[] {
 // Helper functions for OpenRouter date calculations (UTC-based)
 function calculateNextMidnightUTC(): Date {
   const now = new Date();
-  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  const midnight = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1,
+      0,
+      0,
+      0,
+    ),
+  );
   return midnight;
 }
 
 function calculateNextMondayUTC(): Date {
   const now = new Date();
   const day = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
-  const daysUntilMonday = day === 0 ? 1 : (8 - day); // Days until next Monday
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilMonday, 0, 0, 0));
+  const daysUntilMonday = day === 0 ? 1 : 8 - day; // Days until next Monday
+  const monday = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + daysUntilMonday,
+      0,
+      0,
+      0,
+    ),
+  );
   return monday;
 }
 
 function calculateNextMonthStartUTC(): Date {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0),
+  );
 }
 
 export function parseOpenRouterUsage(data: any): QuotaWindow[] {
@@ -384,7 +428,8 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
 
   // Rolling 5-hour request limit
   if (data?.rollingFiveHourLimit && data.rollingFiveHourLimit.max > 0) {
-    const used = data.rollingFiveHourLimit.max - data.rollingFiveHourLimit.remaining;
+    const used =
+      data.rollingFiveHourLimit.max - data.rollingFiveHourLimit.remaining;
     windows.push({
       provider: "synthetic",
       label: "Requests / 5h",
@@ -404,7 +449,10 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
     windows.push({
       provider: "synthetic",
       label: "Search / hour",
-      usedPercent: safePercent(data.search.hourly.requests, data.search.hourly.limit),
+      usedPercent: safePercent(
+        data.search.hourly.requests,
+        data.search.hourly.limit,
+      ),
       resetsAt: parseDateish(data.search.hourly.renewsAt),
       windowSeconds: 60 * 60,
       usedValue: data.search.hourly.requests,
@@ -420,11 +468,83 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
     windows.push({
       provider: "synthetic",
       label: "Free Tool Calls / day",
-      usedPercent: safePercent(data.freeToolCalls.requests, data.freeToolCalls.limit),
+      usedPercent: safePercent(
+        data.freeToolCalls.requests,
+        data.freeToolCalls.limit,
+      ),
       resetsAt: parseDateish(data.freeToolCalls.renewsAt),
       windowSeconds: 24 * 60 * 60,
       usedValue: data.freeToolCalls.requests,
       limitValue: data.freeToolCalls.limit,
+      showPace: true,
+      paceScale: 1,
+      nextLabel: "Resets",
+    });
+  }
+
+  return windows;
+}
+
+export function parseOpenCodeGoUsage(data: {
+  rolling?: {
+    usagePercent: number;
+    resetInSec: number;
+    percentRemaining: number;
+    resetTimeIso: string;
+  };
+  weekly?: {
+    usagePercent: number;
+    resetInSec: number;
+    percentRemaining: number;
+    resetTimeIso: string;
+  };
+  monthly?: {
+    usagePercent: number;
+    resetInSec: number;
+    percentRemaining: number;
+    resetTimeIso: string;
+  };
+}): QuotaWindow[] {
+  const windows: QuotaWindow[] = [];
+
+  if (data.rolling) {
+    windows.push({
+      provider: "opencode-go",
+      label: "5h Rolling",
+      usedPercent: data.rolling.usagePercent,
+      resetsAt: new Date(data.rolling.resetTimeIso),
+      windowSeconds: 5 * 60 * 60,
+      usedValue: data.rolling.usagePercent,
+      limitValue: 100,
+      showPace: false,
+      nextLabel: "Resets",
+    });
+  }
+
+  if (data.weekly) {
+    windows.push({
+      provider: "opencode-go",
+      label: "Weekly",
+      usedPercent: data.weekly.usagePercent,
+      resetsAt: new Date(data.weekly.resetTimeIso),
+      windowSeconds: 7 * 24 * 60 * 60,
+      usedValue: data.weekly.usagePercent,
+      limitValue: 100,
+      showPace: true,
+      paceScale: 1 / 7,
+      nextLabel: "Resets",
+    });
+  }
+
+  if (data.monthly) {
+    windows.push({
+      provider: "opencode-go",
+      label: "Monthly",
+      usedPercent: data.monthly.usagePercent,
+      resetsAt: new Date(data.monthly.resetTimeIso),
+      windowSeconds: 30 * 24 * 60 * 60,
+      usedValue: data.monthly.usagePercent,
+      limitValue: 100,
       showPace: true,
       paceScale: 1,
       nextLabel: "Resets",

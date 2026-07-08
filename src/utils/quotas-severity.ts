@@ -53,7 +53,10 @@ export function getProjectedPercent(
   return Math.max(0, (usedPercent / effectivePace) * 100);
 }
 
-function absoluteUsageSeverity(window: QuotaWindow, percent: number): RiskSeverity {
+function absoluteUsageSeverity(
+  window: QuotaWindow,
+  percent: number,
+): RiskSeverity {
   if (window.limited || percent >= 100) return "critical";
   if (percent >= 90) return "high";
   if (percent >= 80) return "warning";
@@ -139,8 +142,17 @@ export function formatTimeRemaining(date: Date): string {
   const ms = date.getTime() - Date.now();
   if (ms <= 0) return "now";
   const totalMins = Math.ceil(ms / (1000 * 60));
-  const hours = Math.floor(totalMins / 60);
+  const totalHours = Math.floor(totalMins / 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
   const mins = totalMins % 60;
+
+  if (days >= 1) {
+    const parts: string[] = [`${days}d`];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    return parts.join("");
+  }
   if (hours >= 1) return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
   const totalSecs = Math.ceil(ms / 1000);
   return totalMins >= 1 ? `${totalMins}m` : `${totalSecs}s`;

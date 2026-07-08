@@ -1,4 +1,7 @@
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@mariozechner/pi-coding-agent";
 import {
   QUOTAS_CONFIG_UPDATED_EVENT,
   QUOTAS_EXTENSIONS_REGISTER_EVENT,
@@ -6,7 +9,11 @@ import {
   type QuotasConfigUpdatedPayload,
   configLoader,
 } from "../../config.js";
-import { fetchProviderQuotas, isSupportedProvider } from "../../lib/quotas.js";
+import {
+  fetchProviderQuotas,
+  isSupportedProvider,
+  PROVIDER_LABELS,
+} from "../../lib/quotas.js";
 import {
   assessWindow,
   formatTimeRemaining,
@@ -24,9 +31,11 @@ function shouldNotify(key: string, severity: RiskSeverity): boolean {
   const current = alertState.get(key);
   if (!current) return true;
   const order: RiskSeverity[] = ["none", "warning", "high", "critical"];
-  if (order.indexOf(severity) > order.indexOf(current.lastSeverity)) return true;
+  if (order.indexOf(severity) > order.indexOf(current.lastSeverity))
+    return true;
   if (severity === "high" || severity === "critical") return true;
-  if (severity === "warning") return Date.now() - current.lastNotifiedAt >= COOLDOWN_MS;
+  if (severity === "warning")
+    return Date.now() - current.lastNotifiedAt >= COOLDOWN_MS;
   return false;
 }
 
@@ -50,7 +59,10 @@ export default async function (pi: ExtensionAPI) {
     if (onlyNew && now - lastFetchAt < MIN_FETCH_INTERVAL_MS) return;
     lastFetchAt = now;
 
-    const result = await fetchProviderQuotas(ctx.modelRegistry.authStorage, provider);
+    const result = await fetchProviderQuotas(
+      ctx.modelRegistry.authStorage,
+      provider,
+    );
     if (!result.success) return;
 
     const risky = result.data.windows
@@ -59,19 +71,23 @@ export default async function (pi: ExtensionAPI) {
     if (risky.length === 0) return;
 
     const toNotify = onlyNew
-      ? risky.filter((entry) => shouldNotify(`${provider}:${entry.window.label}`, entry.assessment.severity))
+      ? risky.filter((entry) =>
+        shouldNotify(
+          `${provider}:${entry.window.label}`,
+          entry.assessment.severity,
+        ),
+      )
       : risky;
     if (toNotify.length === 0) return;
 
     for (const entry of toNotify) {
-      markNotified(`${provider}:${entry.window.label}`, entry.assessment.severity);
+      markNotified(
+        `${provider}:${entry.window.label}`,
+        entry.assessment.severity,
+      );
     }
 
-    const providerName = provider === "openai-codex"
-      ? "Codex"
-      : provider === "github-copilot"
-        ? "GitHub Copilot"
-        : "Anthropic";
+    const providerName = PROVIDER_LABELS[provider];
 
     const lines = toNotify.map(({ window, assessment }) => {
       const projected = Math.round(assessment.projectedPercent);
@@ -79,7 +95,11 @@ export default async function (pi: ExtensionAPI) {
       return `- ${window.label}: ${used}% used, projected ${projected}% (${assessment.severity}), resets in ${formatTimeRemaining(window.resetsAt)}`;
     });
 
-    const level = toNotify.some((entry) => entry.assessment.severity === "critical" || entry.assessment.severity === "high")
+    const level = toNotify.some(
+      (entry) =>
+        entry.assessment.severity === "critical" ||
+        entry.assessment.severity === "high",
+    )
       ? "error"
       : "warning";
     ctx.ui.notify(`${providerName} quota warning:\n${lines.join("\n")}`, level);
@@ -128,7 +148,9 @@ export default async function (pi: ExtensionAPI) {
 
   pi.events.on(QUOTAS_EXTENSIONS_REQUEST_EVENT, () => {
     if (configLoader.getConfig().quotaWarnings) {
-      pi.events.emit(QUOTAS_EXTENSIONS_REGISTER_EVENT, { feature: "quotaWarnings" });
+      pi.events.emit(QUOTAS_EXTENSIONS_REGISTER_EVENT, {
+        feature: "quotaWarnings",
+      });
     }
   });
 }

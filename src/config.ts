@@ -9,6 +9,7 @@ export type QuotasFeatureId =
   | "quotasCommand"
   | "providerCommands"
   | "usageStatus"
+  | "tokenStatus"
   | "quotaWarnings"
   | "deferToSynthetic";
 
@@ -16,8 +17,7 @@ export const QUOTAS_EXTENSIONS_REQUEST_EVENT =
   "quotas:extensions:request" as const;
 export const QUOTAS_EXTENSIONS_REGISTER_EVENT =
   "quotas:extensions:register" as const;
-export const QUOTAS_CONFIG_UPDATED_EVENT =
-  "quotas:config:updated" as const;
+export const QUOTAS_CONFIG_UPDATED_EVENT = "quotas:config:updated" as const;
 
 export interface QuotasExtensionsRegisterPayload {
   feature: QuotasFeatureId;
@@ -28,6 +28,7 @@ export interface QuotasConfig {
   quotasCommand?: boolean;
   providerCommands?: boolean;
   usageStatus?: boolean;
+  tokenStatus?: boolean;
   quotaWarnings?: boolean;
   /** When true and pi-synthetic's usage footer is active, hide pi-quotas' Synthetic footer. */
   deferToSynthetic?: boolean;
@@ -38,6 +39,7 @@ export interface ResolvedQuotasConfig {
   quotasCommand: boolean;
   providerCommands: boolean;
   usageStatus: boolean;
+  tokenStatus: boolean;
   quotaWarnings: boolean;
   deferToSynthetic: boolean;
 }
@@ -47,6 +49,7 @@ const DEFAULT_CONFIG: ResolvedQuotasConfig = {
   quotasCommand: true,
   providerCommands: true,
   usageStatus: true,
+  tokenStatus: true,
   quotaWarnings: true,
   deferToSynthetic: true,
 };
@@ -81,10 +84,13 @@ class QuotasConfigStore {
     return {
       configVersion: input?.configVersion ?? DEFAULT_CONFIG.configVersion,
       quotasCommand: input?.quotasCommand ?? DEFAULT_CONFIG.quotasCommand,
-      providerCommands: input?.providerCommands ?? DEFAULT_CONFIG.providerCommands,
+      providerCommands:
+        input?.providerCommands ?? DEFAULT_CONFIG.providerCommands,
       usageStatus: input?.usageStatus ?? DEFAULT_CONFIG.usageStatus,
+      tokenStatus: input?.tokenStatus ?? DEFAULT_CONFIG.tokenStatus,
       quotaWarnings: input?.quotaWarnings ?? DEFAULT_CONFIG.quotaWarnings,
-      deferToSynthetic: input?.deferToSynthetic ?? DEFAULT_CONFIG.deferToSynthetic,
+      deferToSynthetic:
+        input?.deferToSynthetic ?? DEFAULT_CONFIG.deferToSynthetic,
     };
   }
 
@@ -118,7 +124,11 @@ class QuotasConfigStore {
   async save(scope: "global" | "local", config: QuotasConfig): Promise<void> {
     const path = scope === "global" ? this.globalPath() : this.localPath();
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, JSON.stringify(this.resolve(config), null, 2) + "\n", "utf8");
+    await writeFile(
+      path,
+      JSON.stringify(this.resolve(config), null, 2) + "\n",
+      "utf8",
+    );
     await this.load(this.cwd);
   }
 }
@@ -126,7 +136,8 @@ class QuotasConfigStore {
 export const configLoader = new QuotasConfigStore();
 
 export async function seedQuotasConfigIfMissing(): Promise<void> {
-  if (configLoader.hasConfig("global") || configLoader.hasConfig("local")) return;
+  if (configLoader.hasConfig("global") || configLoader.hasConfig("local"))
+    return;
   markMigrationNoticePending();
   try {
     await configLoader.save("global", DEFAULT_CONFIG);
@@ -158,12 +169,18 @@ const FEATURE_META: Array<{
   {
     id: "providerCommands",
     label: "Provider quota commands",
-    description: "Toggle `/anthropic:quotas`, `/codex:quotas`, `/github:quotas`, `/openrouter:quotas`, and `/synthetic:quotas`",
+    description:
+      "Toggle `/anthropic:quotas`, `/codex:quotas`, `/github:quotas`, `/openrouter:quotas`, and `/synthetic:quotas`",
   },
   {
     id: "usageStatus",
     label: "Usage status",
     description: "Toggle footer quota status for the active provider",
+  },
+  {
+    id: "tokenStatus",
+    label: "Token usage status",
+    description: "Toggle the footer token-usage status and /tokens command",
   },
   {
     id: "quotaWarnings",
@@ -173,7 +190,8 @@ const FEATURE_META: Array<{
   {
     id: "deferToSynthetic",
     label: "Defer to Synthetic",
-    description: "When pi-synthetic is loaded, hide pi-quotas' Synthetic footer to avoid duplicates",
+    description:
+      "When pi-synthetic is loaded, hide pi-quotas' Synthetic footer to avoid duplicates",
   },
 ];
 
@@ -196,7 +214,9 @@ export function registerQuotasSettings(
 
       while (true) {
         const choices = FEATURE_META.map((feature) => {
-          const loaded = getLoadedFeatures().has(feature.id) ? "" : " (not loaded)";
+          const loaded = getLoadedFeatures().has(feature.id)
+            ? ""
+            : " (not loaded)";
           const enabled = draft[feature.id] ? "enabled" : "disabled";
           return `${feature.label}: ${enabled}${loaded}`;
         });
@@ -214,13 +234,23 @@ export function registerQuotasSettings(
           return;
         }
 
-        const feature = FEATURE_META.find((item) => selected.startsWith(item.label));
+        const feature = FEATURE_META.find((item) =>
+          selected.startsWith(item.label),
+        );
         if (!feature) continue;
-        if (feature.id !== "deferToSynthetic" && !getLoadedFeatures().has(feature.id)) {
-          ctx.ui.notify(`${feature.label} is not loaded by Pi in this session.`, "warning");
+        if (
+          feature.id !== "deferToSynthetic" &&
+          !getLoadedFeatures().has(feature.id)
+        ) {
+          ctx.ui.notify(
+            `${feature.label} is not loaded by Pi in this session.`,
+            "warning",
+          );
           continue;
         }
-        (draft as unknown as Record<string, boolean>)[feature.id] = !(draft as unknown as Record<string, boolean>)[feature.id];
+        (draft as unknown as Record<string, boolean>)[feature.id] = !(
+          draft as unknown as Record<string, boolean>
+        )[feature.id];
       }
     },
   });

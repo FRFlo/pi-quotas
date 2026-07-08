@@ -9,6 +9,7 @@ export const SUPPORTED_PROVIDERS: SupportedQuotaProvider[] = [
   "openrouter",
   "synthetic",
   "zai",
+  "opencode-go",
 ];
 
 export const PROVIDER_LABELS: Record<SupportedQuotaProvider, string> = {
@@ -18,6 +19,7 @@ export const PROVIDER_LABELS: Record<SupportedQuotaProvider, string> = {
   openrouter: "OpenRouter",
   synthetic: "Synthetic",
   zai: "Z.ai",
+  "opencode-go": "OpenCode Go",
 };
 
 const PROVIDER_TTLS_MS: Record<SupportedQuotaProvider, number> = {
@@ -27,6 +29,7 @@ const PROVIDER_TTLS_MS: Record<SupportedQuotaProvider, number> = {
   openrouter: 60_000,
   synthetic: 60_000,
   zai: 60_000,
+  "opencode-go": 60_000,
 };
 
 type CacheEntry = {
@@ -57,7 +60,12 @@ export async function fetchProviderQuotas(
   const now = Date.now();
   const ttl = PROVIDER_TTLS_MS[provider];
 
-  if (!options?.force && entry.result && entry.fetchedAt && now - entry.fetchedAt < ttl) {
+  if (
+    !options?.force &&
+    entry.result &&
+    entry.fetchedAt &&
+    now - entry.fetchedAt < ttl
+  ) {
     return entry.result;
   }
   if (!options?.force && entry.inFlight) return entry.inFlight;

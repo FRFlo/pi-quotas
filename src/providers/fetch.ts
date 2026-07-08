@@ -11,7 +11,10 @@ import {
   parseOpenRouterUsage,
   parseSyntheticUsage,
   parseZaiUsage,
+  parseOpenCodeGoUsage,
 } from "./providers.js";
+import { resolveOpenCodeGoConfigCached } from "./opencode-go-config.js";
+import { queryOpenCodeGoQuota } from "./opencode-go.js";
 
 const FETCH_TIMEOUT_MS = 15_000;
 const COPILOT_VERSION = "0.35.0";
@@ -88,11 +91,17 @@ async function fetchJson(
   }
 }
 
-function success(provider: SupportedQuotaProvider, windows: ReturnType<typeof parseAnthropicUsage>): QuotasResult {
+function success(
+  provider: SupportedQuotaProvider,
+  windows: ReturnType<typeof parseAnthropicUsage>,
+): QuotasResult {
   return { success: true, data: { provider, windows } };
 }
 
-function failure(message: string, kind: "cancelled" | "timeout" | "config" | "http" | "network"): QuotasResult {
+function failure(
+  message: string,
+  kind: "cancelled" | "timeout" | "config" | "http" | "network",
+): QuotasResult {
   return { success: false, error: { message, kind } };
 }
 
@@ -159,11 +168,13 @@ function copilotHeaders(authHeader: string): Record<string, string> {
  */
 function ghCliToken(): string | undefined {
   try {
-    return execFileSync("gh", ["auth", "token"], {
-      timeout: 5000,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim() || undefined;
+    return (
+      execFileSync("gh", ["auth", "token"], {
+        timeout: 5000,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || undefined
+    );
   } catch {
     return undefined;
   }
@@ -195,13 +206,22 @@ async function fetchGitHubCopilotQuotasWithGitHubToken(
   githubToken: string | undefined,
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
-  if (!githubToken) return failure("No GitHub Copilot OAuth token found", "config");
+  if (!githubToken)
+    return failure("No GitHub Copilot OAuth token found", "config");
 
-  const bearerUsage = await tryGitHubUserEndpoint(`Bearer ${githubToken}`, signal);
-  if (bearerUsage.ok) return success("github-copilot", parseGitHubCopilotUsage(bearerUsage.data));
+  const bearerUsage = await tryGitHubUserEndpoint(
+    `Bearer ${githubToken}`,
+    signal,
+  );
+  if (bearerUsage.ok)
+    return success("github-copilot", parseGitHubCopilotUsage(bearerUsage.data));
 
-  const tokenUsage = await tryGitHubUserEndpoint(`token ${githubToken}`, signal);
-  if (tokenUsage.ok) return success("github-copilot", parseGitHubCopilotUsage(tokenUsage.data));
+  const tokenUsage = await tryGitHubUserEndpoint(
+    `token ${githubToken}`,
+    signal,
+  );
+  if (tokenUsage.ok)
+    return success("github-copilot", parseGitHubCopilotUsage(tokenUsage.data));
 
   return failure(bearerUsage.message, bearerUsage.kind);
 }
@@ -210,7 +230,8 @@ export async function fetchGitHubCopilotQuotasWithToken(
   accessToken: string | undefined,
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
-  if (!accessToken) return failure("No GitHub Copilot OAuth token found", "config");
+  if (!accessToken)
+    return failure("No GitHub Copilot OAuth token found", "config");
 
   // 1) Try Copilot token exchange with stored Pi token
   const exchange = await fetchJson(
@@ -220,19 +241,28 @@ export async function fetchGitHubCopilotQuotasWithToken(
   );
 
   if (exchange.ok && exchange.data?.token) {
-    const usage = await tryGitHubUserEndpoint(`Bearer ${exchange.data.token}`, signal);
-    if (usage.ok) return success("github-copilot", parseGitHubCopilotUsage(usage.data));
+    const usage = await tryGitHubUserEndpoint(
+      `Bearer ${exchange.data.token}`,
+      signal,
+    );
+    if (usage.ok)
+      return success("github-copilot", parseGitHubCopilotUsage(usage.data));
   }
 
   // 2) Try stored token directly
-  const directUsage = await tryGitHubUserEndpoint(`token ${accessToken}`, signal);
-  if (directUsage.ok) return success("github-copilot", parseGitHubCopilotUsage(directUsage.data));
+  const directUsage = await tryGitHubUserEndpoint(
+    `token ${accessToken}`,
+    signal,
+  );
+  if (directUsage.ok)
+    return success("github-copilot", parseGitHubCopilotUsage(directUsage.data));
 
   // 3) Fallback: gh CLI token
   const cliToken = ghCliToken();
   if (cliToken && cliToken !== accessToken) {
     const cliUsage = await tryGitHubUserEndpoint(`token ${cliToken}`, signal);
-    if (cliUsage.ok) return success("github-copilot", parseGitHubCopilotUsage(cliUsage.data));
+    if (cliUsage.ok)
+      return success("github-copilot", parseGitHubCopilotUsage(cliUsage.data));
     return failure(cliUsage.message, cliUsage.kind);
   }
 
@@ -243,7 +273,10 @@ export async function fetchAnthropicQuotas(
   authStorage: AuthStorage,
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
-  return fetchAnthropicQuotasWithToken(await providerAccessToken(authStorage, "anthropic"), signal);
+  return fetchAnthropicQuotasWithToken(
+    await providerAccessToken(authStorage, "anthropic"),
+    signal,
+  );
 }
 
 export async function fetchCodexQuotas(
@@ -313,7 +346,11 @@ export async function fetchSyntheticQuotas(
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
   const apiKey = process.env.SYNTHETIC_API_KEY;
-  if (!apiKey) return failure("No Synthetic API key found (set SYNTHETIC_API_KEY)", "config");
+  if (!apiKey)
+    return failure(
+      "No Synthetic API key found (set SYNTHETIC_API_KEY)",
+      "config",
+    );
 
   const result = await fetchJson(
     "https://api.synthetic.new/v2/quotas",
@@ -324,6 +361,37 @@ export async function fetchSyntheticQuotas(
   );
   if (!result.ok) return failure(result.message, result.kind);
   return success("synthetic", parseSyntheticUsage(result.data));
+}
+
+export async function fetchOpenCodeGoQuotas(
+  _authStorage: AuthStorage,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  const configResult = await resolveOpenCodeGoConfigCached();
+  if (configResult.state === "none") {
+    return failure(
+      "No OpenCode Go config. Set OPENCODE_GO_WORKSPACE_ID +" +
+        " OPENCODE_GO_AUTH_COOKIE, or create" +
+        " ~/.config/opencode/opencode-quota/opencode-go.json",
+      "config",
+    );
+  }
+  if (configResult.state === "incomplete") {
+    return failure(
+      `OpenCode Go config incomplete: missing ${configResult.missing}`,
+      "config",
+    );
+  }
+  if (configResult.state === "invalid") {
+    return failure(
+      `OpenCode Go config invalid: ${configResult.error}`,
+      "config",
+    );
+  }
+
+  const result = await queryOpenCodeGoQuota(configResult.config, signal);
+  if (!result.success) return failure(result.error, "http");
+  return success("opencode-go", parseOpenCodeGoUsage(result));
 }
 
 export async function fetchZaiQuotasWithToken(
@@ -359,4 +427,5 @@ export const PROVIDER_FETCHERS = {
   openrouter: fetchOpenRouterQuotas,
   synthetic: fetchSyntheticQuotas,
   zai: fetchZaiQuotas,
+  "opencode-go": fetchOpenCodeGoQuotas,
 } as const;
