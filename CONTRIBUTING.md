@@ -15,6 +15,8 @@ npm install
 | Script | Description |
 |--------|-------------|
 | `npm run typecheck` | Type-check without emitting |
+| `npm run lint` | Lint the `src/` tree (ESLint flat config) |
+| `npm run lint:fix` | Lint and auto-fix style issues |
 | `npm test` | Run tests once |
 | `npm run test:watch` | Run tests in watch mode |
 
@@ -22,7 +24,7 @@ npm install
 
 1. Create a branch from `main`
 2. Make your changes with tests where applicable
-3. Run `npm run typecheck` and `npm test` before committing
+3. Run `npm run typecheck`, `npm run lint`, and `npm test` before committing
 4. Open a pull request against `main`
 
 ## Testing locally

@@ -364,7 +364,6 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
 
   // Weekly token/credit limit (primary window for paid plans)
   if (data?.weeklyTokenLimit) {
-    const { weeklyTokenLimit } = data.weeklyTokenLimit;
     const limitValue = parseCurrency(data.weeklyTokenLimit.maxCredits);
     const remainingValue = parseCurrency(data.weeklyTokenLimit.remainingCredits);
     windows.push({

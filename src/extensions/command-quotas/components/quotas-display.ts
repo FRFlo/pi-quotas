@@ -38,7 +38,6 @@ function renderProgressBar(
   const paceIndex = showPace
     ? Math.min(width - 1, Math.round((Math.max(0, Math.min(100, pacePercent ?? 0)) / 100) * width))
     : null;
-  const reset = "\x1b[0m";
   const parts: string[] = [];
   for (let idx = 0; idx < width; idx++) {
     if (paceIndex !== null && idx === paceIndex) {
