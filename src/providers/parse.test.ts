@@ -4,6 +4,7 @@ import { parseCodexUsage } from "./providers.js";
 import { parseGitHubCopilotUsage } from "./providers.js";
 import { parseOpenRouterUsage } from "./providers.js";
 import { parseSyntheticUsage } from "./providers.js";
+import { parseZaiUsage } from "./providers.js";
 
 describe("parseAnthropicUsage", () => {
   it("maps oauth usage response into quota windows", () => {
@@ -539,5 +540,89 @@ describe("parseSyntheticUsage", () => {
   it("returns empty array when no data", () => {
     const windows = parseSyntheticUsage({});
     expect(windows).toHaveLength(0);
+  });
+});
+
+describe("parseZaiUsage", () => {
+  it("maps token windows (5h/7d) and the monthly web-search count", () => {
+    const windows = parseZaiUsage({
+      data: {
+        level: "lite",
+        limits: [
+          {
+            type: "TIME_LIMIT",
+            unit: 5,
+            number: 1,
+            usage: 100,
+            currentValue: 25,
+            remaining: 75,
+            percentage: 25,
+            nextResetTime: 1785048370995,
+            usageDetails: [
+              { modelCode: "search-prime", usage: 20 },
+              { modelCode: "web-reader", usage: 5 },
+            ],
+          },
+          {
+            type: "TOKENS_LIMIT",
+            unit: 3,
+            number: 5,
+            percentage: 8,
+            nextResetTime: 1782932874304,
+          },
+          {
+            type: "TOKENS_LIMIT",
+            unit: 6,
+            number: 1,
+            percentage: 52,
+            nextResetTime: 1783061170994,
+          },
+        ],
+      },
+    });
+
+    // Shortest window first: 5h → 7d → month
+    expect(windows).toHaveLength(3);
+    expect(windows[0]).toMatchObject({
+      provider: "zai",
+      label: "5h",
+      usedPercent: 8,
+      windowSeconds: 5 * 60 * 60,
+      usedValue: 8,
+      limitValue: 100,
+    });
+    expect(windows[1]).toMatchObject({
+      provider: "zai",
+      label: "7d",
+      usedPercent: 52,
+      windowSeconds: 7 * 24 * 60 * 60,
+    });
+    expect(windows[2]).toMatchObject({
+      provider: "zai",
+      label: "Web / month",
+      usedPercent: 25,
+      usedValue: 25,
+      limitValue: 100,
+      windowSeconds: 30 * 24 * 60 * 60,
+    });
+  });
+
+  it("skips the monthly window when the entitlement is zero", () => {
+    const windows = parseZaiUsage({
+      data: {
+        limits: [
+          { type: "TIME_LIMIT", unit: 5, number: 1, usage: 0, currentValue: 0, nextResetTime: 1785048370995 },
+          { type: "TOKENS_LIMIT", unit: 3, number: 5, percentage: 0, nextResetTime: 1782932874304 },
+        ],
+      },
+    });
+    expect(windows).toHaveLength(1);
+    expect(windows[0].label).toBe("5h");
+  });
+
+  it("returns empty array when there are no limits", () => {
+    expect(parseZaiUsage({})).toHaveLength(0);
+    expect(parseZaiUsage({ data: {} })).toHaveLength(0);
+    expect(parseZaiUsage({ data: { limits: [] } })).toHaveLength(0);
   });
 });

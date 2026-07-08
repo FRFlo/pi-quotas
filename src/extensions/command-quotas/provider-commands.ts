@@ -40,5 +40,11 @@ export function getProviderCommandInfo(
         commandName: "synthetic:quotas",
         title: "Synthetic Quotas",
       };
+    case "zai":
+      return {
+        provider,
+        commandName: "zai:quotas",
+        title: "Z.ai Quotas",
+      };
   }
 }

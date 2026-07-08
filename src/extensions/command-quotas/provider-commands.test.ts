@@ -40,4 +40,13 @@ describe("getProviderCommandInfo", () => {
       title: "OpenRouter Quotas",
     });
   });
+
+  it("maps zai to zai:quotas", () => {
+    const info = getProviderCommandInfo("zai");
+    expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+      provider: "zai",
+      commandName: "zai:quotas",
+      title: "Z.ai Quotas",
+    });
+  });
 });
