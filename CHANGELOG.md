@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-07-09
+
+### Added
+- **Z.ai (GLM Coding Plan) provider**: 5h/7d rolling token windows and a monthly web-search count window, with the `/zai:quotas` command and footer status. Contributed by @tdslot in #15.
+- **OpenCode Go provider**: dashboard scraper for rolling 5h / weekly / monthly USD usage against Go tier limits, with the `/opencode-go:quotas` command and a token-status footer for `opencode-go*` models. Configured via `OPENCODE_GO_WORKSPACE_ID` + `OPENCODE_GO_AUTH_COOKIE` (env or config file). Contributed by @gretel (DO2THX) in #11.
+- **Token usage tracking**: `/tokens` command with cross-session token/cost aggregation from JSONL session files. Contributed by @gretel (DO2THX) in #11.
+- **Token usage status** footer extension and a per-feature toggle in `/quotas:settings`.
+- ESLint linting is now part of the repo (`npm run lint` / `npm run lint:fix`), codifying the existing 2-space / double-quote / semicolon style as the enforced default.
+
+### Fixed
+- **Stale usage-status context**: the footer no longer repaints stale provider data after a session reload or a switch to a deferred Synthetic footer, using a generation token to cancel in-flight fetches and guarding status writes against stale-context errors. Fix contributed by @aserper in #13, with an independent approach by @Fadouse in #12 (superseded by #13 and credited here).
+- Quota warning labels now use `PROVIDER_LABELS` instead of a hardcoded Anthropic label. Contributed by @gretel in #11.
+- `formatTimeRemaining` now shows days when the remaining time is >= 24h (e.g. `649h30m` → `27d1h30m`). Contributed by @gretel in #11.
+
+### Changed
+- Lint conformance is now required before merge; PR #11 was converted from tab to 2-space indentation to match the repo style.
+
 ## [0.2.6] - 2026-05-14
 
 ### Added
