@@ -59,8 +59,30 @@ async function openQuotaView(
 
   if (result === undefined) {
     const snapshots = await loadSnapshots(true);
-    ctx.ui.notify(JSON.stringify(snapshots, null, 2), "info");
+    ctx.ui.notify(formatSnapshotsForNotify(snapshots), "info");
   }
+}
+
+/**
+ * Render quota snapshots as a readable multi-line summary for the
+ * non-interactive fallback (when `ctx.ui.custom` returns undefined). Avoids
+ * dumping raw JSON — which previously leaked raw HTTP error bodies — and
+ * skips "not_applicable" providers since they have nothing to report.
+ */
+function formatSnapshotsForNotify(snapshots: Snapshot[]): string {
+  const lines: string[] = [];
+  for (const { provider, result } of snapshots) {
+    if (!result.success) {
+      if (result.error.kind === "not_applicable") continue;
+      lines.push(`${provider}: ${result.error.message}`);
+      continue;
+    }
+    const summary = result.data.windows
+      .map((w) => `${w.label} ${w.usedPercent}%`)
+      .join(", ");
+    lines.push(`${provider}: ${summary || "no windows"}`);
+  }
+  return lines.join("\n") || "No quota data available";
 }
 
 export function registerQuotasCommands(pi: ExtensionAPI): void {

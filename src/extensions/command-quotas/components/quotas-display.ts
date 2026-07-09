@@ -140,7 +140,14 @@ export class QuotasComponent implements Component {
     lines.push(truncateToWidth(`  ${this.theme.fg("accent", title)}`, maxWidth));
 
     if (!snapshot.result.success) {
-      lines.push(truncateToWidth(`  ${this.theme.fg("warning", snapshot.result.error.message)}`, maxWidth));
+      // "not applicable" is an expected, non-error state (e.g. a direct
+      // Anthropic API key with no subscription usage) — show a dim note,
+      // not a warning-coloured error.
+      const { error } = snapshot.result;
+      const tone = error.kind === "not_applicable" ? "dim" : "warning";
+      lines.push(
+        truncateToWidth(`  ${this.theme.fg(tone, error.message)}`, maxWidth),
+      );
       return lines;
     }
 

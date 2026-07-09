@@ -152,6 +152,13 @@ function createStatusRefresher() {
       if (requestGeneration !== generation || activeContext !== ctx) return;
 
       if (!result.success) {
+        // A "not applicable" result (e.g. a direct Anthropic API key with no
+        // OAuth subscription usage) is expected, not a failure — show nothing
+        // rather than a persistent "usage unavailable" warning.
+        if (result.error.kind === "not_applicable") {
+          setStatusSafely(ctx, undefined);
+          return;
+        }
         setStatusSafely(ctx, (ctx) => ctx.ui.theme.fg("warning", "usage unavailable"));
         return;
       }

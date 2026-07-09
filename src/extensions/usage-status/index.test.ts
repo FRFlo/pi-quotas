@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import usageStatusExtension from "./index.js";
+import { fetchProviderQuotas } from "../../lib/quotas.js";
 
 vi.mock("../../config.js", () => ({
   QUOTAS_CONFIG_UPDATED_EVENT: "quotas:config:updated",
@@ -156,5 +157,26 @@ describe("usage-status extension lifecycle", () => {
     expect(listenerCount("quotas:config:updated")).toBe(0);
     expect(listenerCount("synthetic:extensions:register")).toBe(0);
     expect(listenerCount("quotas:extensions:request")).toBe(0);
+  });
+
+  it("clears the footer silently for not_applicable credentials instead of warning", async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetchProviderQuotas).mockResolvedValueOnce({
+      success: false,
+      error: { kind: "not_applicable", message: "Direct API key" },
+    } as any);
+
+    const { pi, emitExtensionEvent } = createFakePi();
+    const { ctx, setStatus } = createContext("anthropic");
+
+    await usageStatusExtension(pi);
+    await emitExtensionEvent("session_start", ctx);
+    await vi.runOnlyPendingTimersAsync();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const calls = setStatus.mock.calls as unknown as Array<[string, string | undefined]>;
+    const last = calls[calls.length - 1]?.[1];
+    expect(last).toBeUndefined();
+    expect(calls.some((c) => c[1] === "usage unavailable")).toBe(false);
   });
 });

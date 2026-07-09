@@ -122,4 +122,33 @@ describe("QuotasComponent", () => {
 
     vi.useRealTimers();
   });
+
+  it("renders a not_applicable provider silently with a dim note, not a warning", () => {
+    const component = makeComponent();
+    component.setState({
+      type: "loaded",
+      snapshots: [
+        {
+          provider: "anthropic",
+          result: {
+            success: false,
+            error: {
+              kind: "not_applicable",
+              message: "Direct API key — no subscription usage to report",
+            },
+          },
+        },
+      ],
+    });
+
+    const output = component.render(70).join("\n");
+
+    expect(output).toContain("Anthropic");
+    expect(output).toContain("Direct API key");
+    // Rendered as a dim informational note, not a warning.
+    expect(output).toContain("\x1b[2m");
+    expect(output).not.toContain("\x1b[33m");
+    expect(output).not.toContain("usage unavailable");
+    expect(output).not.toContain("{");
+  });
 });

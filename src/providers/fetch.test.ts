@@ -24,6 +24,19 @@ describe("fetchAnthropicQuotasWithToken", () => {
     });
   });
 
+  it("skips the OAuth usage call for a direct API key and returns not_applicable", async () => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as any;
+
+    const result = await fetchAnthropicQuotasWithToken("sk-ant-api03-direct-key");
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "not_applicable" },
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("fetches and parses quota windows", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
@@ -233,5 +246,23 @@ describe("fetchOpenRouterQuotasWithToken", () => {
       success: false,
       error: { kind: "http" },
     });
+  });
+
+  it("extracts a clean message from a JSON error body instead of raw JSON", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: { type: "authentication_error", message: "invalid x-api-key" },
+        }),
+        { status: 401 },
+      ),
+    ) as any;
+
+    const result = await fetchOpenRouterQuotasWithToken("bad-key");
+    expect(result).toMatchObject({ success: false, error: { kind: "http" } });
+    if (!result.success) {
+      expect(result.error.message).toBe("invalid x-api-key");
+      expect(result.error.message).not.toContain("{");
+    }
   });
 });

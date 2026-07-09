@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AuthStorage } from "@mariozechner/pi-coding-agent";
-import type { QuotasResult, SupportedQuotaProvider } from "../types/quotas.js";
+import type { QuotasErrorKind, QuotasResult, SupportedQuotaProvider } from "../types/quotas.js";
 import {
   parseAnthropicUsage,
   parseCodexUsage,
@@ -34,6 +34,16 @@ async function providerAccessToken(
   return authStorage.getApiKey(provider);
 }
 
+/**
+ * Detect a raw Anthropic API key (`sk-ant-...`). OAuth subscription tokens
+ * issued by `pi /login` are JWT-shaped (`eyJ...`) or opaque and never carry
+ * the `sk-ant-` prefix, so this reliably distinguishes a direct API key that
+ * has no OAuth subscription usage to report.
+ */
+function isDirectAnthropicApiKey(token: string): boolean {
+  return token.startsWith("sk-ant-");
+}
+
 function codexAccountId(authStorage: AuthStorage): string | undefined {
   const credential = authStorage.get("openai-codex") as any;
   if (typeof credential?.accountId === "string") return credential.accountId;
@@ -55,6 +65,34 @@ type FetchJsonResult =
       kind: "timeout" | "cancelled" | "http" | "network";
     };
 
+/**
+ * Reduce a raw HTTP error body to a short, human-readable message.
+ *
+ * Many APIs return a JSON error object (e.g. Anthropic's
+ * `{"error":{"type":"authentication_error","message":"..."}}` or a
+ * bare `{"message":"..."}`). Surfacing the raw blob in the dashboard or
+ * footer is ugly and confusing, so extract the inner message field when the
+ * body parses as JSON; otherwise return the body unchanged.
+ */
+function cleanHttpErrorMessage(body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return "";
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return trimmed;
+  try {
+    const parsed = JSON.parse(trimmed) as any;
+    const message =
+      parsed?.error?.message ??
+      parsed?.message ??
+      parsed?.error ??
+      parsed?.detail ??
+      parsed?.error_description;
+    if (typeof message === "string" && message.trim()) return message.trim();
+  } catch {
+    // Not valid JSON — fall through to the raw body.
+  }
+  return trimmed;
+}
+
 async function fetchJson(
   url: string,
   init: RequestInit,
@@ -71,7 +109,7 @@ async function fetchJson(
       return {
         ok: false,
         status: response.status,
-        message: body || response.statusText || `HTTP ${response.status}`,
+        message: cleanHttpErrorMessage(body) || response.statusText || `HTTP ${response.status}`,
         kind: "http",
       };
     }
@@ -100,7 +138,7 @@ function success(
 
 function failure(
   message: string,
-  kind: "cancelled" | "timeout" | "config" | "http" | "network",
+  kind: QuotasErrorKind,
 ): QuotasResult {
   return { success: false, error: { message, kind } };
 }
@@ -110,6 +148,16 @@ export async function fetchAnthropicQuotasWithToken(
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
   if (!accessToken) return failure("No Anthropic OAuth token found", "config");
+  // The /api/oauth/usage endpoint requires OAuth subscription credentials.
+  // A direct API key (e.g. `sk-ant-api03-...` registered via `pi /login`) is
+  // not an OAuth token, so the call would always fail. Detect it up front and
+  // return a silent "not applicable" result rather than a warning.
+  if (isDirectAnthropicApiKey(accessToken)) {
+    return failure(
+      "Direct Anthropic API key — no subscription usage to report",
+      "not_applicable",
+    );
+  }
   const result = await fetchJson(
     "https://api.anthropic.com/api/oauth/usage",
     {

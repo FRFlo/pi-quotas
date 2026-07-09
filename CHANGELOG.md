@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-07-09
+
+### Fixed
+- **Direct Anthropic API key users**: quota monitoring no longer fails for users who registered a direct API key (`sk-ant-...`) via `pi /login` rather than an OAuth subscription token. The `/api/oauth/usage` endpoint requires OAuth credentials, so the fetch is now skipped for direct keys with a silent "not applicable" result — the footer shows nothing instead of a persistent "usage unavailable" warning, and the dashboard shows a dim note instead of a raw JSON error body. Fixes #14 (reported by @vkarasen).
+- **Raw JSON error bodies**: HTTP error responses that return a JSON object (e.g. `{"error":{"message":"..."}}`) are now reduced to a clean, human-readable message across all providers, so the dashboard and notifications no longer leak raw JSON.
+- **Non-interactive `/quotas` fallback**: when the TUI custom view is unavailable, the command now renders a readable per-provider summary instead of dumping raw JSON snapshots (which previously included raw HTTP error bodies).
+
 ## [0.3.0] - 2026-07-09
 
 ### Added

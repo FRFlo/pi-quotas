@@ -12,7 +12,11 @@ export type QuotasErrorKind =
   | "timeout"
   | "config"
   | "http"
-  | "network";
+  | "network"
+  // The provider is not applicable for the stored credential type
+  // (e.g. a direct Anthropic API key has no OAuth subscription usage to
+  // report). Consumers should render this silently rather than as a warning.
+  | "not_applicable";
 
 export type QuotasResult =
   | {
