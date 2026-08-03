@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Kimi Code provider**: rolling five-hour and weekly Coding Plan usage windows, with the `/kimi:quotas` command, dashboard, footer status, and quota warnings.
 
+### Fixed
+- **Codex quota window labels**: footer and dashboard labels now follow the server-provided window duration instead of assuming every primary window is 5h. Weekly-only responses now correctly show `7d` alongside their reset countdown.
+
 ## [0.3.1] - 2026-07-09
 
 ### Fixed
