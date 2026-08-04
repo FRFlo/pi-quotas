@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-04
+
 ### Added
-- **Kimi Code provider**: rolling five-hour and weekly Coding Plan usage windows, with the `/kimi:quotas` command, dashboard, footer status, and quota warnings.
+- **Kimi Code provider**: rolling five-hour and weekly Coding Plan usage windows, with the `/kimi:quotas` command, dashboard, footer status, and quota warnings. Contributed by @tdslot in #19.
 
 ### Fixed
-- **Codex quota window labels**: footer and dashboard labels now follow the server-provided window duration instead of assuming every primary window is 5h. Weekly-only responses now correctly show `7d` alongside their reset countdown.
+- **Modern Pi authentication compatibility**: quota checks now resolve provider credentials through `ModelRegistry` instead of relying on its removed public `authStorage` property. This restores footer quota status, quota warnings, and `/codex:quotas` on newer Pi releases while remaining compatible with older releases, preserving stored OAuth metadata (GitHub Copilot `refresh`, Codex `accountId`) and adding `getProviderAuth()` header-based Bearer extraction. Contributed by @tdslot in #18.
+- **Codex quota window labels**: footer and dashboard labels now follow the server-provided window duration instead of assuming every primary window is 5h. Weekly-only responses now correctly show `7d` alongside their reset countdown. Contributed by @tdslot in #20.
 
 ## [0.3.1] - 2026-07-09
 
