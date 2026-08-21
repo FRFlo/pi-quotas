@@ -9,6 +9,7 @@ import {
   parseCodexUsage,
   parseGitHubCopilotUsage,
   parseKimiCodingUsage,
+  parseOllamaCloudUsage,
   parseOpenRouterUsage,
   parseSyntheticUsage,
   parseZaiUsage,
@@ -500,6 +501,35 @@ export async function fetchZaiQuotas(
   return fetchZaiQuotasWithToken(await providerAccessToken(authStorage, "zai"), signal);
 }
 
+export async function fetchOllamaCloudQuotasWithToken(
+  apiKey: string | undefined,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  if (!apiKey) return failure("No Ollama Cloud API key found", "config");
+  const result = await fetchJson(
+    "https://ollama.com/api/usage",
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    },
+    signal,
+  );
+  if (!result.ok) return failure(result.message, result.kind);
+  return success("ollama-cloud", parseOllamaCloudUsage(result.data));
+}
+
+export async function fetchOllamaCloudQuotas(
+  authStorage: AuthStorage,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  const apiKey =
+    (await providerAccessToken(authStorage, "ollama-cloud")) ??
+    process.env.OLLAMA_API_KEY;
+  return fetchOllamaCloudQuotasWithToken(apiKey, signal);
+}
+
 export const PROVIDER_FETCHERS = {
   anthropic: fetchAnthropicQuotas,
   "openai-codex": fetchCodexQuotas,
@@ -509,4 +539,5 @@ export const PROVIDER_FETCHERS = {
   zai: fetchZaiQuotas,
   "opencode-go": fetchOpenCodeGoQuotas,
   "kimi-coding": fetchKimiCodingQuotas,
+  "ollama-cloud": fetchOllamaCloudQuotas,
 } as const;

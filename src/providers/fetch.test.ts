@@ -6,6 +6,7 @@ import {
   fetchGitHubCopilotQuotas,
   fetchGitHubCopilotQuotasWithToken,
   fetchKimiCodingQuotasWithToken,
+  fetchOllamaCloudQuotasWithToken,
   fetchOpenRouterQuotasWithToken,
 } from "./fetch.js";
 
@@ -317,5 +318,44 @@ describe("fetchOpenRouterQuotasWithToken", () => {
       expect(result.error.message).toBe("invalid x-api-key");
       expect(result.error.message).not.toContain("{");
     }
+  });
+});
+
+describe("fetchOllamaCloudQuotasWithToken", () => {
+  it("returns config error when token missing", async () => {
+    const result = await fetchOllamaCloudQuotasWithToken(undefined);
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "config" },
+    });
+  });
+
+  it("fetches and parses Ollama Cloud usage", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          limits: {
+            session: { usage: 0.34, models: [] },
+            weekly: { usage: 0.45, models: [] },
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as any;
+
+    const result = await fetchOllamaCloudQuotasWithToken("ollama-key");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.provider).toBe("ollama-cloud");
+      expect(result.data.windows).toHaveLength(2);
+    }
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://ollama.com/api/usage",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer ollama-key",
+        }),
+      }),
+    );
   });
 });

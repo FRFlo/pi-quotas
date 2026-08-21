@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Ollama Cloud provider**: rolling 5-hour session and 7-day weekly usage windows from the undocumented `/api/usage` endpoint, with the `/ollama:quotas` command, dashboard, footer status, and quota warnings. Reads the `ollama-cloud` API key from `auth.json` (falls back to `OLLAMA_API_KEY`).
+
 ## [0.4.0] - 2026-08-04
 
 ### Added
