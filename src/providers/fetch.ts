@@ -649,11 +649,44 @@ function readAntigravityAccountsFallback(): {
     try {
       const data = JSON.parse(readFileSync(p, "utf8")) as any;
       if (Array.isArray(data?.accounts) && data.accounts.length > 0) {
-        const acc = data.accounts[0];
-        const refreshToken = acc.refreshToken;
-        const accessToken = acc.accessToken;
+        // 1. Honor selected/active account specified in file metadata
+        const activeId =
+          data.activeAccountId || data.selectedAccountId || data.selectedAccount;
+        const activeIndex =
+          typeof data.selectedAccountIndex === "number"
+            ? data.selectedAccountIndex
+            : -1;
+
+        let acc = data.accounts.find(
+          (a: any) =>
+            (activeId && (a.id === activeId || a.email === activeId)) ||
+            a.active === true ||
+            a.selected === true,
+        );
+
+        if (!acc && activeIndex >= 0 && activeIndex < data.accounts.length) {
+          acc = data.accounts[activeIndex];
+        }
+
+        // 2. Otherwise find the first non-disabled account with tokens
+        if (!acc) {
+          acc = data.accounts.find(
+            (a: any) =>
+              !a.disabled &&
+              (typeof a.refreshToken === "string" ||
+                typeof a.accessToken === "string"),
+          );
+        }
+
+        // 3. Fallback to first entry
+        if (!acc) {
+          acc = data.accounts[0];
+        }
+
+        const refreshToken = acc?.refreshToken;
+        const accessToken = acc?.accessToken;
         const projectId =
-          acc.managedProjectId || acc.projectId || acc.quotaProjectId;
+          acc?.managedProjectId || acc?.projectId || acc?.quotaProjectId;
         if (refreshToken || accessToken) {
           return { accessToken, refreshToken, projectId };
         }
@@ -664,6 +697,12 @@ function readAntigravityAccountsFallback(): {
   }
   return null;
 }
+
+interface CachedAntigravityToken {
+  accessToken: string;
+  expiresAt: number;
+}
+const antigravityTokenCache = new Map<string, CachedAntigravityToken>();
 
 export async function fetchAntigravityQuotasWithCredentials(
   creds: {
@@ -678,13 +717,20 @@ export async function fetchAntigravityQuotasWithCredentials(
   const refreshToken = creds.refreshToken;
   const projectId = creds.projectId || "aicode-consumers";
 
-  if (
-    refreshToken &&
-    (!accessToken || (creds.expiresAt && creds.expiresAt < Date.now() + 60_000))
-  ) {
-    const refresh = await refreshAntigravityToken(refreshToken, signal);
-    if (refresh.ok) {
-      accessToken = refresh.accessToken;
+  if (refreshToken) {
+    const cached = antigravityTokenCache.get(refreshToken);
+    if (cached && cached.expiresAt > Date.now() + 60_000) {
+      accessToken = cached.accessToken;
+    } else if (
+      !accessToken ||
+      (creds.expiresAt && creds.expiresAt < Date.now() + 60_000)
+    ) {
+      const refresh = await refreshAntigravityToken(refreshToken, signal);
+      if (refresh.ok) {
+        accessToken = refresh.accessToken;
+        const expiresAt = Date.now() + (refresh.expiresIn ?? 3600) * 1000;
+        antigravityTokenCache.set(refreshToken, { accessToken, expiresAt });
+      }
     }
   }
 
@@ -718,6 +764,8 @@ export async function fetchAntigravityQuotasWithCredentials(
     const refresh = await refreshAntigravityToken(refreshToken, signal);
     if (refresh.ok) {
       accessToken = refresh.accessToken;
+      const expiresAt = Date.now() + (refresh.expiresIn ?? 3600) * 1000;
+      antigravityTokenCache.set(refreshToken, { accessToken, expiresAt });
       result = await fetchJson(
         ANTIGRAVITY_FETCH_MODELS_URL,
         {
