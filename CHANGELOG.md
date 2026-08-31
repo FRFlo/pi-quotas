@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **OAuth refresh failures crash Pi**: a failed OAuth token refresh (e.g. an expired Anthropic refresh token) threw a `ModelsError` out of the quota fetch and surfaced as an `uncaughtException`, killing the whole Pi process when running `/quotas` or refreshing the footer. Fetcher errors are now contained and rendered as a per-provider failure ("re-authenticate with /login") instead.
+- **Anthropic OAuth token prefix**: OAuth subscription tokens (`sk-ant-oat...`) were misclassified as direct API keys, so subscription usage was never fetched. Only `sk-ant-api...` keys are now treated as direct API keys. Contributed by @shaharyair in #28.
+- **Synthetic API key source**: the Synthetic provider now prefers the key stored via `pi /login` (auth storage) and falls back to the `SYNTHETIC_API_KEY` env var. Contributed by @tdslot in #22.
+- **Reset-time readability**: adjacent time units are now separated by a space (`2h 19m`, `1d 2h 19m` instead of `2h19m`, `1d2h19m`). Contributed by @shaharyair in #31.
+
 ## [0.4.0] - 2026-08-04
 
 ### Added

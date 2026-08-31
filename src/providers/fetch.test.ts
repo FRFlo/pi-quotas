@@ -7,6 +7,7 @@ import {
   fetchGitHubCopilotQuotasWithToken,
   fetchKimiCodingQuotasWithToken,
   fetchOpenRouterQuotasWithToken,
+  fetchSyntheticQuotas,
 } from "./fetch.js";
 
 const originalFetch = globalThis.fetch;
@@ -38,7 +39,7 @@ describe("fetchAnthropicQuotasWithToken", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("fetches and parses quota windows", async () => {
+  it("accepts OAuth tokens and parses quota windows", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -49,7 +50,7 @@ describe("fetchAnthropicQuotasWithToken", () => {
       ),
     ) as any;
 
-    const result = await fetchAnthropicQuotasWithToken("token");
+    const result = await fetchAnthropicQuotasWithToken("sk-ant-oat01-oauth-token");
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.provider).toBe("anthropic");
@@ -317,5 +318,79 @@ describe("fetchOpenRouterQuotasWithToken", () => {
       expect(result.error.message).toBe("invalid x-api-key");
       expect(result.error.message).not.toContain("{");
     }
+  });
+});
+
+describe("fetchSyntheticQuotas", () => {
+  const authStorageWithKey = (key: string | undefined) =>
+    ({
+      getApiKey: vi.fn().mockResolvedValue(key),
+    }) as unknown as AuthStorage;
+
+  const quotasResponse = () =>
+    new Response(
+      JSON.stringify({
+        weeklyTokenLimit: {
+          nextRegenAt: "2026-01-08T00:00:00.000Z",
+          percentRemaining: 90,
+          maxCredits: "$24.00",
+          remainingCredits: "$21.60",
+          nextRegenCredits: "$0.48",
+        },
+        rollingFiveHourLimit: {
+          nextTickAt: "2026-01-01T01:00:00.000Z",
+          tickPercent: 0.05,
+          remaining: 490,
+          max: 500,
+          limited: false,
+        },
+      }),
+      { status: 200 },
+    );
+
+  afterEach(() => {
+    delete process.env.SYNTHETIC_API_KEY;
+  });
+
+  it("prefers the auth.json key over SYNTHETIC_API_KEY", async () => {
+    process.env.SYNTHETIC_API_KEY = "env-key";
+    const fetchSpy = vi.fn().mockResolvedValue(quotasResponse());
+    globalThis.fetch = fetchSpy as any;
+
+    const result = await fetchSyntheticQuotas(authStorageWithKey("syn_stored"));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.provider).toBe("synthetic");
+      expect(result.data.windows.length).toBeGreaterThan(0);
+    }
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer syn_stored",
+    );
+  });
+
+  it("falls back to SYNTHETIC_API_KEY when no stored credential exists", async () => {
+    process.env.SYNTHETIC_API_KEY = "env-key";
+    const fetchSpy = vi.fn().mockResolvedValue(quotasResponse());
+    globalThis.fetch = fetchSpy as any;
+
+    const result = await fetchSyntheticQuotas(authStorageWithKey(undefined));
+    expect(result.success).toBe(true);
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect((init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer env-key",
+    );
+  });
+
+  it("returns config error when neither auth.json nor env var provides a key", async () => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as any;
+
+    const result = await fetchSyntheticQuotas(authStorageWithKey(undefined));
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "config" },
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

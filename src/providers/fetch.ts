@@ -36,13 +36,11 @@ async function providerAccessToken(
 }
 
 /**
- * Detect a raw Anthropic API key (`sk-ant-...`). OAuth subscription tokens
- * issued by `pi /login` are JWT-shaped (`eyJ...`) or opaque and never carry
- * the `sk-ant-` prefix, so this reliably distinguishes a direct API key that
- * has no OAuth subscription usage to report.
+ * Detect a raw Anthropic API key. OAuth subscription tokens use the
+ * `sk-ant-oat` prefix, while direct API keys use `sk-ant-api`.
  */
 function isDirectAnthropicApiKey(token: string): boolean {
-  return token.startsWith("sk-ant-");
+  return token.startsWith("sk-ant-api");
 }
 
 function codexAccountId(authStorage: AuthStorage): string | undefined {
@@ -391,13 +389,17 @@ export async function fetchOpenRouterQuotas(
 }
 
 export async function fetchSyntheticQuotas(
-  _authStorage: AuthStorage,
+  authStorage: AuthStorage,
   signal?: AbortSignal,
 ): Promise<QuotasResult> {
-  const apiKey = process.env.SYNTHETIC_API_KEY;
+  // Prefer the key stored via `pi /login` (auth.json); fall back to the
+  // SYNTHETIC_API_KEY env var for setups that don't register credentials.
+  const apiKey =
+    (await providerAccessToken(authStorage, "synthetic")) ??
+    process.env.SYNTHETIC_API_KEY;
   if (!apiKey)
     return failure(
-      "No Synthetic API key found (set SYNTHETIC_API_KEY)",
+      "No Synthetic API key found (run `pi /login synthetic` or set SYNTHETIC_API_KEY)",
       "config",
     );
 

@@ -43,6 +43,40 @@ type CacheEntry = {
 
 const cache = new Map<SupportedQuotaProvider, CacheEntry>();
 
+/**
+ * Convert an unexpected throw from a provider fetcher into a failure result.
+ *
+ * The most common cause is pi's auth layer throwing a ModelsError when an
+ * OAuth token refresh fails (e.g. an expired Anthropic refresh token). If we
+ * let that rejection escape, it surfaces as an uncaughtException and crashes
+ * pi, so it must be contained here.
+ */
+function toFailureResult(
+  provider: SupportedQuotaProvider,
+  err: unknown,
+): QuotasResult {
+  const message = err instanceof Error ? err.message : String(err);
+  const isOAuthError =
+    (err as { code?: string } | null)?.code === "oauth" ||
+    /oauth|refresh token|token refresh/i.test(message);
+  if (isOAuthError) {
+    return {
+      success: false,
+      error: {
+        message: `${PROVIDER_LABELS[provider]} OAuth token refresh failed — re-authenticate with /login`,
+        kind: "config",
+      },
+    };
+  }
+  return {
+    success: false,
+    error: {
+      message: message.split("\n")[0].slice(0, 200) || "Unknown error",
+      kind: "network",
+    },
+  };
+}
+
 export function isSupportedProvider(
   provider: string | undefined,
 ): provider is SupportedQuotaProvider {
@@ -74,6 +108,7 @@ export async function fetchProviderQuotas(
   if (!options?.force && entry.inFlight) return entry.inFlight;
 
   const promise = PROVIDER_FETCHERS[provider](authStorage, options?.signal)
+    .catch((err: unknown) => toFailureResult(provider, err))
     .then((result: QuotasResult) => {
       cache.set(provider, { result, fetchedAt: Date.now() });
       return result;
