@@ -47,7 +47,7 @@ function getContextProvider(ctx: ExtensionContext | undefined): string | undefin
 
 function formatFooterResetTime(resetsAt: string): string {
   const remaining = formatTimeRemaining(new Date(resetsAt));
-  return `↺${remaining}`;
+  return `(${remaining})`;
 }
 
 export function formatStatus(ctx: Pick<ExtensionContext, "ui">, windows: WindowStatus[]): string {
