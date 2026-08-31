@@ -55,7 +55,8 @@ export function formatStatus(ctx: Pick<ExtensionContext, "ui">, windows: WindowS
   return windows
     .map((w) => {
       const core = formatWindowStatus(theme, w);
-      const shouldShowReset = w.resetsAt && (w.usedPercent > 0 || w.severity !== "none");
+      const hasUsage = w.usedPercent > 0 || (w.usedValue != null && w.usedValue > 0);
+      const shouldShowReset = w.resetsAt && (hasUsage || w.severity !== "none");
       const resetTime = shouldShowReset ? formatFooterResetTime(w.resetsAt!) : "";
       const reset = resetTime ? theme.fg("dim", ` ${resetTime}`) : "";
       return `${core}${reset}`;
