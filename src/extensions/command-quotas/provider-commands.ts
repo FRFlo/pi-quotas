@@ -58,5 +58,11 @@ export function getProviderCommandInfo(
         commandName: "kimi:quotas",
         title: "Kimi Code Quotas",
       };
+    case "ollama-cloud":
+      return {
+        provider,
+        commandName: "ollama:quotas",
+        title: "Ollama Cloud Quotas",
+      };
   }
 }

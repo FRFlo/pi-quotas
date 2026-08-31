@@ -749,3 +749,41 @@ export function parseZaiUsage(data: any): QuotaWindow[] {
   collected.sort((a, b) => a.windowSeconds - b.windowSeconds);
   return collected;
 }
+
+// Ollama Cloud subscription quotas. The undocumented /api/usage endpoint
+// exposes a rolling 5-hour session limit and a rolling 7-day weekly limit,
+// each reported as a 0-1 usage fraction (not tokens) plus per-model request
+// counts. Reset timestamps are not exposed, so windows carry no reset time.
+export function parseOllamaCloudUsage(data: any): QuotaWindow[] {
+  const windows: QuotaWindow[] = [];
+
+  const session = data?.limits?.session;
+  if (session && typeof session.usage === "number") {
+    windows.push({
+      provider: "ollama-cloud",
+      label: "5h",
+      usedPercent: Math.max(0, Math.min(100, Math.round(session.usage * 100))),
+      resetsAt: new Date(0),
+      windowSeconds: 5 * 60 * 60,
+      usedValue: Math.max(0, Math.min(100, Math.round(session.usage * 100))),
+      limitValue: 100,
+      showPace: false,
+    });
+  }
+
+  const weekly = data?.limits?.weekly;
+  if (weekly && typeof weekly.usage === "number") {
+    windows.push({
+      provider: "ollama-cloud",
+      label: "7d",
+      usedPercent: Math.max(0, Math.min(100, Math.round(weekly.usage * 100))),
+      resetsAt: new Date(0),
+      windowSeconds: 7 * 24 * 60 * 60,
+      usedValue: Math.max(0, Math.min(100, Math.round(weekly.usage * 100))),
+      limitValue: 100,
+      showPace: false,
+    });
+  }
+
+  return windows;
+}

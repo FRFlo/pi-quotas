@@ -3,6 +3,7 @@ import { parseAnthropicUsage } from "./providers.js";
 import { parseCodexUsage } from "./providers.js";
 import { parseGitHubCopilotUsage } from "./providers.js";
 import { parseKimiCodingUsage } from "./providers.js";
+import { parseOllamaCloudUsage } from "./providers.js";
 import { parseOpenRouterUsage } from "./providers.js";
 import { parseSyntheticUsage } from "./providers.js";
 import { parseZaiUsage } from "./providers.js";
@@ -858,5 +859,56 @@ describe("parseZaiUsage", () => {
     expect(parseZaiUsage({})).toHaveLength(0);
     expect(parseZaiUsage({ data: {} })).toHaveLength(0);
     expect(parseZaiUsage({ data: { limits: [] } })).toHaveLength(0);
+  });
+});
+
+describe("parseOllamaCloudUsage", () => {
+  it("maps session and weekly usage fractions into quota windows", () => {
+    const windows = parseOllamaCloudUsage({
+      limits: {
+        session: {
+          usage: 0.022,
+          models: [{ name: "deepseek-v4-pro:0813", request_count: 15 }],
+        },
+        weekly: {
+          usage: 0.004,
+          models: [{ name: "deepseek-v4-pro:0813", request_count: 15 }],
+        },
+      },
+      activity: { cost: "0.00000" },
+    });
+
+    expect(windows).toHaveLength(2);
+    expect(windows[0]).toMatchObject({
+      provider: "ollama-cloud",
+      label: "5h",
+      usedPercent: 2,
+      windowSeconds: 5 * 60 * 60,
+      usedValue: 2,
+      limitValue: 100,
+    });
+    expect(windows[1]).toMatchObject({
+      provider: "ollama-cloud",
+      label: "7d",
+      usedPercent: 0,
+      windowSeconds: 7 * 24 * 60 * 60,
+    });
+  });
+
+  it("clamps usage fractions above 1 to 100%", () => {
+    const windows = parseOllamaCloudUsage({
+      limits: {
+        session: { usage: 1.5, models: [] },
+        weekly: { usage: 0.5, models: [] },
+      },
+    });
+
+    expect(windows[0].usedPercent).toBe(100);
+    expect(windows[1].usedPercent).toBe(50);
+  });
+
+  it("returns empty array when limits are missing", () => {
+    expect(parseOllamaCloudUsage({})).toHaveLength(0);
+    expect(parseOllamaCloudUsage({ limits: {} })).toHaveLength(0);
   });
 });

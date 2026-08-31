@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Ollama Cloud provider**: rolling 5-hour session and 7-day weekly usage windows from the undocumented `/api/usage` endpoint, with the `/ollama:quotas` command, dashboard, footer status, and quota warnings. Reads the `ollama-cloud` API key from `auth.json` (falls back to `OLLAMA_API_KEY`).
+
 ### Fixed
 - **OAuth refresh failures crash Pi**: a failed OAuth token refresh (e.g. an expired Anthropic refresh token) threw a `ModelsError` out of the quota fetch and surfaced as an `uncaughtException`, killing the whole Pi process when running `/quotas` or refreshing the footer. Fetcher errors are now contained and rendered as a per-provider failure ("re-authenticate with /login") instead.
 - **Anthropic OAuth token prefix**: OAuth subscription tokens (`sk-ant-oat...`) were misclassified as direct API keys, so subscription usage was never fetched. Only `sk-ant-api...` keys are now treated as direct API keys. Contributed by @shaharyair in #28.
