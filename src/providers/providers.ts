@@ -871,7 +871,7 @@ export function parseXaiUsage(data: any): QuotaWindow[] {
       showPace: false,
       limited: onDemandUsed >= onDemandLimit,
       nextLabel: "Resets",
-});
+    });
   }
 
   return windows;
