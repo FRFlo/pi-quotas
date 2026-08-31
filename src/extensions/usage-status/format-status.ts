@@ -44,9 +44,9 @@ const SHORT_LABELS: Record<string, string> = {
   "Free Tool Calls / day": "tools",
   // Antigravity labels
   Claude: "claude",
-  "Gemini Pro": "g-pro",
-  "Gemini Flash": "g-flash",
-  "GPT-OSS 120B": "gpt-oss",
+  "Gemini Pro": "pro",
+  "Gemini Flash": "flash",
+  "GPT-OSS 120B": "gpt",
 };
 
 /**
@@ -104,7 +104,7 @@ export function formatWindowStatus(theme: ThemeLike, w: WindowStatus): string {
     valueText = theme.fg(color, `${remaining}/${w.limitValue}`);
   } else {
     const remaining = Math.max(0, Math.min(100, Math.round(100 - w.usedPercent)));
-    valueText = theme.fg(color, `${remaining}% left`);
+    valueText = theme.fg(color, `${remaining}%`);
   }
 
   const limitTag = w.limited ? theme.fg("error", " !") : "";
