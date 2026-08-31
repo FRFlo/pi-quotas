@@ -43,7 +43,7 @@ describe("formatWindowStatus", () => {
       limitValue: 100,
     };
     const result = formatWindowStatus(theme, w);
-    expect(result).toContain("91% left");
+    expect(result).toContain("91%");
     expect(result).toContain("[success]");
   });
 
@@ -91,7 +91,7 @@ describe("formatWindowStatus", () => {
     const result = formatWindowStatus(theme, w);
     // label should be colored with error (high maps to error)
     expect(result).toContain("[error]7d:");
-    expect(result).toContain("15% left");
+    expect(result).toContain("15%");
   });
 
   it("keeps label dim when severity is none", () => {
@@ -133,8 +133,8 @@ describe("formatWindowStatus", () => {
 
       const result = formatStatus({ ui: { theme } } as any, [status]);
 
-      expect(result).toContain("(↺in 2h 19m)");
-      expect(result).not.toContain("(↺in 3h)");
+      expect(result).toContain("(2h 19m)");
+      expect(result).not.toContain("(3h)");
     }
   });
 
@@ -242,7 +242,7 @@ describe("formatWindowStatus", () => {
       ],
     );
 
-    expect(result).toContain("(↺now)");
-    expect(result).not.toContain("(↺in now)");
+    expect(result).toContain("(now)");
+    expect(result).not.toContain("(in now)");
   });
 });
