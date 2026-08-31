@@ -2,10 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.5.0] - 2026-08-31
 
 ### Added
-- **Ollama Cloud provider**: rolling 5-hour session and 7-day weekly usage windows from the undocumented `/api/usage` endpoint, with the `/ollama:quotas` command, dashboard, footer status, and quota warnings. Reads the `ollama-cloud` API key from `auth.json` (falls back to `OLLAMA_API_KEY`).
+- **Grok (xAI) provider**: SuperGrok credit usage from the xAI CLI billing endpoint — weekly/monthly credit period, per-product usage windows, and on-demand spend — with the `/grok:quotas` command, dashboard, footer status, and quota warnings. Contributed by @LJC-god in #25.
+- **Hide inactive quota providers**: dashboard and `/quotas` output now hide providers with nothing to report (no windows, or config/not-applicable errors) instead of showing a wall of unconfigured providers. Contributed by @LJC-god in #26.
+- **Ollama Cloud provider**: rolling 5-hour session and 7-day weekly usage windows from the undocumented `/api/usage` endpoint, with the `/ollama:quotas` command, dashboard, footer status, and quota warnings. Reads the `ollama-cloud` API key from `auth.json` (falls back to `OLLAMA_API_KEY`). Contributed by @tdslot in #24.
 
 ### Fixed
 - **OAuth refresh failures crash Pi**: a failed OAuth token refresh (e.g. an expired Anthropic refresh token) threw a `ModelsError` out of the quota fetch and surfaced as an `uncaughtException`, killing the whole Pi process when running `/quotas` or refreshing the footer. Fetcher errors are now contained and rendered as a per-provider failure ("re-authenticate with /login") instead.
