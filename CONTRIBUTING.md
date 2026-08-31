@@ -25,7 +25,14 @@ npm install
 1. Create a branch from `main`
 2. Make your changes with tests where applicable
 3. Run `npm run typecheck`, `npm run lint`, and `npm test` before committing
+   - Use `npm run lint:fix` to auto-fix style (2-space indent, double quotes, semicolons, trailing commas)
 4. Open a pull request against `main`
+
+## Continuous integration
+
+CI runs `typecheck`, `lint`, `test`, and an `npm publish --dry-run` on every pull request and push to `main`. A PR cannot be merged until all CI jobs are green. See `.github/workflows/ci.yml`.
+
+Releases are published to npm automatically when a GitHub Release is created (see `.github/workflows/release.yml`); do **not** run `npm publish` manually for tagged releases.
 
 ## Testing locally
 
