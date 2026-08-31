@@ -9,6 +9,7 @@ import {
   fetchOllamaCloudQuotasWithToken,
   fetchOpenRouterQuotasWithToken,
   fetchSyntheticQuotas,
+  fetchXaiQuotasWithToken,
 } from "./fetch.js";
 
 const originalFetch = globalThis.fetch;
@@ -321,6 +322,7 @@ describe("fetchOpenRouterQuotasWithToken", () => {
     }
   });
 });
+
 describe("fetchSyntheticQuotas", () => {
   const authStorageWithKey = (key: string | undefined) =>
     ({
@@ -431,5 +433,65 @@ describe("fetchOllamaCloudQuotasWithToken", () => {
         }),
       }),
     );
+  });
+});
+
+describe("fetchXaiQuotasWithToken", () => {
+  it("returns config error when token missing", async () => {
+    const result = await fetchXaiQuotasWithToken(undefined);
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "config" },
+    });
+  });
+
+  it("fetches and parses Grok subscription quotas", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          config: {
+            currentPeriod: {
+              type: "USAGE_PERIOD_TYPE_WEEKLY",
+              start: "2026-08-25T17:13:55Z",
+              end: "2026-09-01T17:13:55Z",
+            },
+            creditUsagePercent: 17,
+            productUsage: [{ product: "GrokBuild", usagePercent: 10 }],
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as any;
+
+    const result = await fetchXaiQuotasWithToken("xai-token");
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.provider).toBe("xai");
+      expect(result.data.windows).toHaveLength(2);
+    }
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer xai-token",
+        }),
+      }),
+    );
+  });
+
+  it("reports Grok billing HTTP failures", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: "token rejected" }), {
+        status: 401,
+      }),
+    ) as any;
+
+    const result = await fetchXaiQuotasWithToken("bad-token");
+
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "http", message: "token rejected" },
+    });
   });
 });
